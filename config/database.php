@@ -99,6 +99,21 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        'pgsql_fca' => [
+            'driver' => 'pgsql',
+            'url' => env('DB_FCA_URL'),
+            'host' => env('DB_FCA_HOST', '127.0.0.1'),
+            'port' => env('DB_FCA_PORT', '5432'),
+            'database' => env('DB_FCA_DATABASE', 'bd_fca'),
+            'username' => env('DB_FCA_USERNAME', 'postgres'),
+            'password' => env('DB_FCA_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),
