@@ -1,7 +1,12 @@
 <?php
 
-test('returns a successful response', function () {
-    $response = $this->get(route('home'));
+use Inertia\Testing\AssertableInertia as Assert;
 
-    $response->assertOk();
+test('la pantalla de inicio de sesion responde correctamente', function () {
+    $response = $this->get(route('login'));
+
+    $response->assertStatus(200)
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Login')
+        );
 });
