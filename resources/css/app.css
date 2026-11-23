@@ -9,3 +9,16 @@
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
 }
+
+/*
+ * Colores institucionales tomados del Figma (ConsultaDatosProfesores).
+ * Se usan como clases de Tailwind: bg-sacpa-marino, text-sacpa-azul, border-sacpa-azul...
+ */
+@theme {
+    --color-sacpa-marino: #001447; /* fondo del encabezado y pestañas */
+    --color-sacpa-azul: #0b3a7e; /* botón Agregar, borde de tablas, barra de formularios */
+    --color-sacpa-azul-oscuro: #082c61; /* hover de botones azules */
+    --color-sacpa-verde: #13703f; /* botón Descargar Excel (administrador) */
+    --color-sacpa-verde-oscuro: #0e5630;
+    --color-sacpa-aviso: #f8c816; /* aviso amarillo de actualización pendiente */
+}
