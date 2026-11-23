@@ -19,6 +19,19 @@ use Illuminate\Support\Carbon;
 class Bitacora extends Model
 {
     /**
+     * Registra una acción del usuario. La acción es un código corto
+     * (máx. 20 caracteres), por ejemplo 'crear_dato_personal'.
+     */
+    public static function registrar(Usuario $usuario, string $accion): self
+    {
+        return self::create([
+            'bita_id_usuario' => $usuario->usua_id_usuario,
+            'bita_accion' => mb_substr($accion, 0, 20),
+            'bita_fecha_hora' => now(),
+        ]);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
