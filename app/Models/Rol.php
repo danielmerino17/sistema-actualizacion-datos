@@ -17,6 +17,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['rol_nombre_rol', 'rol_descripcion'])]
 class Rol extends Model
 {
+    /** Nombres de rol que usa el sistema (catálogo en RolesSeeder). */
+    public const PROFESOR = 'Profesor';
+
+    public const ADMINISTRADOR = 'Administrador';
+
     /**
      * @return HasMany<Usuario, $this>
      */

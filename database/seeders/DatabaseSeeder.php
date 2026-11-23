@@ -15,7 +15,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(CatalogosSeeder::class);
+        $this->call([
+            CatalogosSeeder::class,
+            RolesSeeder::class,
+        ]);
+
+        // Profesores inventados para trabajar sin bd_fca (solo en local).
+        if (app()->isLocal()) {
+            $this->call(DesarrolloSeeder::class);
+        }
 
         // User::factory(10)->create();
 

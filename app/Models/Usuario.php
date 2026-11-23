@@ -4,14 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 
 /**
  * Usuario del sistema: profesores y administradores (según su rol).
+ *
+ * Es el modelo con el que se inicia sesión (config/auth.php). No guarda
+ * contraseña: la validación de credenciales se hace contra bd_fca en el
+ * login (Parte 5) y después se llama a Auth::login($usuario).
  *
  * @property int $usua_id_usuario
  * @property int $usua_id_rol
@@ -30,8 +34,16 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'usua_correo',
     'usua_activo',
 ])]
-class Usuario extends Model
+class Usuario extends Authenticatable
 {
+    /**
+     * Indica si el usuario tiene alguno de los roles dados.
+     */
+    public function tieneRol(string ...$roles): bool
+    {
+        return in_array($this->rol?->rol_nombre_rol, $roles, true);
+    }
+
     /**
      * @return array<string, string>
      */

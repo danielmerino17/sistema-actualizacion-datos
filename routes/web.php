@@ -1,6 +1,11 @@
 <?php
 
+use App\Http\Controllers\Profesor\DatosPersonalesController;
+use App\Models\Rol;
+use App\Models\Usuario;
+use Database\Seeders\DesarrolloSeeder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -8,12 +13,30 @@ Route::inertia('/', 'Login')->name('login');
 
 /*
 |--------------------------------------------------------------------------
-| Muestra de componentes (solo en desarrollo)
+| Profesor
 |--------------------------------------------------------------------------
-| Página para revisar los componentes de la Parte 2 contra el Figma.
-| Solo existe cuando APP_ENV=local; en el servidor estas rutas no se registran.
+| Solo usuarios con sesión iniciada y rol Profesor.
+*/
+Route::middleware(['auth', 'rol:'.Rol::PROFESOR])->group(function () {
+    Route::controller(DatosPersonalesController::class)
+        ->prefix('datos-personales')
+        ->name('datos-personales.')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::put('/{contacto}', 'update')->whereNumber('contacto')->name('update');
+            Route::delete('/{contacto}', 'destroy')->whereNumber('contacto')->name('destroy');
+        });
+});
+
+/*
+|--------------------------------------------------------------------------
+| Solo en desarrollo (APP_ENV=local)
+|--------------------------------------------------------------------------
+| En el servidor estas rutas no se registran.
 */
 if (app()->isLocal()) {
+    // Muestra de componentes de la Parte 2.
     Route::inertia('/demo/componentes', 'Demo/Componentes')->name('demo.componentes');
 
     Route::post('/demo/flash', function (Request $request) {
@@ -24,4 +47,15 @@ if (app()->isLocal()) {
 
         return Inertia::flash($datos['tipo'], $datos['mensaje'])->back();
     })->name('demo.flash');
+
+    // Acceso de prueba mientras no existe el login real (Parte 5).
+    // Entra como el profesor inventado de DesarrolloSeeder.
+    Route::get('/dev/entrar-como-profesor', function (Request $request) {
+        $usuario = Usuario::where('usua_correo', DesarrolloSeeder::CORREO_PROFESOR_PRUEBA)->firstOrFail();
+
+        Auth::login($usuario);
+        $request->session()->regenerate();
+
+        return to_route('datos-personales.index');
+    })->name('dev.entrar-como-profesor');
 }
