@@ -1,5 +1,6 @@
 import type { Directive } from 'vue';
 import type { Auth } from '@/types/auth';
+import type { MensajesFlash } from '@/types/sacpa';
 
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
@@ -22,6 +23,8 @@ declare module '@inertiajs/core' {
             sidebarOpen: boolean;
             [key: string]: unknown;
         };
+        // Mensajes de Inertia::flash('exito' | 'error', '...') en Laravel.
+        flashDataType: MensajesFlash;
     }
 }
 
