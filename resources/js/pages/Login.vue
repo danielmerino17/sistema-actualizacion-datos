@@ -2,21 +2,17 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import InstitucionalLayout from '@/layouts/InstitucionalLayout.vue';
 
-// Estado reactivo del formulario conectado a los 3 campos del diseño
+// Estado reactivo del formulario conectado a los 2 campos del diseño
 const form = useForm({
     numero_trabajador: '',
     rfc: '',
-    password: '',
 });
 
 const submit = () => {
-    // Normalizamos el RFC a mayúsculas antes de enviarlo al backend
     form.rfc = form.rfc.toUpperCase().trim();
     form.numero_trabajador = form.numero_trabajador.trim();
 
-    form.post('/login', {
-        onFinish: () => form.reset('password'),
-    });
+    form.post('/login');
 };
 </script>
 
@@ -79,29 +75,6 @@ const submit = () => {
                     />
                     <p v-if="form.errors.rfc" class="mt-1 text-xs text-red-600">
                         {{ form.errors.rfc }}
-                    </p>
-                </div>
-
-                <!-- Campo: Contraseña -->
-                <div>
-                    <label
-                        for="password"
-                        class="mb-1 block text-lg font-bold text-black"
-                    >
-                        Contraseña
-                    </label>
-                    <input
-                        id="password"
-                        v-model="form.password"
-                        type="password"
-                        required
-                        class="w-full rounded border-gray-300 bg-gray-50 focus:border-blue-900 focus:ring-blue-900"
-                    />
-                    <p
-                        v-if="form.errors.password"
-                        class="mt-1 text-xs text-red-600"
-                    >
-                        {{ form.errors.password }}
                     </p>
                 </div>
 

@@ -18,13 +18,12 @@ withDefaults(
     defineProps<{
         pestanas?: Pestana[];
         profesor?: Profesor | null;
-        // TODO (Parte 5): cambiar a la ruta de cerrar sesión cuando exista.
         salirHref?: string;
     }>(),
     {
         pestanas: () => [],
         profesor: null,
-        salirHref: '/',
+        salirHref: '/logout',
     },
 );
 </script>
@@ -59,6 +58,8 @@ withDefaults(
         <footer class="px-4 pb-6 sm:px-8">
             <Link
                 :href="salirHref"
+                method="post"
+                as="button"
                 class="inline-flex items-center rounded-full border border-gray-500 bg-white px-8 py-1 text-sm font-semibold text-gray-900 transition hover:bg-gray-100"
             >
                 Salir
