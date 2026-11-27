@@ -65,7 +65,9 @@ class LoginController extends Controller
             $rolProfesorId = (int) Rol::where('rol_nombre_rol', Rol::PROFESOR)->value('rol_id_rol');
 
             $usuario = DB::transaction(function () use ($rolProfesorId, $correo, $numeroTrabajador, $registro): Usuario {
-                $usuario = Usuario::updateOrCreate(
+                // firstOrCreate (no updateOrCreate): si ya existe un usuario con ese
+                // correo, no se le cambia el rol ni se reactiva si estaba desactivado.
+                $usuario = Usuario::firstOrCreate(
                     ['usua_correo' => $correo],
                     [
                         'usua_id_rol' => $rolProfesorId,
@@ -90,6 +92,13 @@ class LoginController extends Controller
 
                 return $usuario;
             });
+        }
+
+        // Un usuario desactivado no puede entrar (antes entraba y veía un error 403).
+        if (! $usuario->usua_activo) {
+            throw ValidationException::withMessages([
+                'numero_trabajador' => 'Tu usuario está desactivado. Comunícate con la coordinación.',
+            ]);
         }
 
         // 3. Iniciar sesión y registrar en bitácora

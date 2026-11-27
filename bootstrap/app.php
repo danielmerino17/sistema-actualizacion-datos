@@ -23,6 +23,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'rol' => VerificarRol::class,
         ]);
+
+        // Si alguien con sesión abre el login (/), se le manda a su pantalla.
+        // Sin esto Laravel redirige a "/" y se forma un ciclo infinito.
+        // TODO (Parte 6): enviar al administrador a su propia pantalla.
+        $middleware->redirectUsersTo(fn () => route('datos-personales.index'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
