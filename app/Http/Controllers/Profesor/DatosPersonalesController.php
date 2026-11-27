@@ -2,13 +2,11 @@
 
 namespace App\Http\Controllers\Profesor;
 
-use App\Http\Controllers\Controller;
 use App\Http\Requests\Profesor\GuardarDatoPersonalRequest;
 use App\Models\Bitacora;
 use App\Models\Contacto;
 use App\Models\PersonaContacto;
 use App\Models\TipoContacto;
-use App\Models\Usuario;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,28 +15,17 @@ use Inertia\Response;
 
 /**
  * Pantalla "Datos personales" del profesor: sus correos y teléfonos.
- *
- * Cada profesor solo puede ver y modificar SUS datos: todo se busca a
- * partir del usuario con sesión iniciada, nunca por un id que mande el navegador.
+ * Cada profesor solo puede ver y modificar SUS datos (ver ProfesorController).
  */
-class DatosPersonalesController extends Controller
+class DatosPersonalesController extends ProfesorController
 {
-    /** Cada cuántos meses se le pide al profesor revisar sus datos. */
-    public const MESES_PARA_ACTUALIZAR = 6;
-
     public function index(Request $request): Response
     {
         $persona = $this->personaTitular($request);
         $persona->load(['contactos' => fn ($consulta) => $consulta->orderBy('cont_id_contacto'), 'contactos.tipo']);
-        $ultimaActualizacion = $persona->peco_fecha_ultima_actualizacion;
 
         return Inertia::render('Profesor/DatosPersonales', [
-            'profesor' => [
-                'nombre' => $persona->peco_nombre,
-                'apellidoPaterno' => $persona->peco_apellido_paterno,
-                'apellidoMaterno' => $persona->peco_apellido_materno,
-                'numeroTrabajador' => $persona->peco_numero_trabajador,
-            ],
+            ...$this->encabezado($persona),
             'contactos' => $persona->contactos->map(fn (Contacto $contacto) => [
                 'id' => $contacto->cont_id_contacto,
                 'tipoId' => $contacto->cont_id_tipo_contacto,
@@ -52,9 +39,6 @@ class DatosPersonalesController extends Controller
                     'valor' => $tipo->tico_id_tipo_contacto,
                     'texto' => $tipo->tico_tipo_contacto,
                 ])->values(),
-            'ultimaActualizacion' => $ultimaActualizacion?->format('d / m / Y'),
-            'requiereActualizacion' => $ultimaActualizacion === null
-                || $ultimaActualizacion->lt(now()->subMonths(self::MESES_PARA_ACTUALIZAR)),
         ]);
     }
 
@@ -110,27 +94,6 @@ class DatosPersonalesController extends Controller
 
         return Inertia::flash('exito', 'Datos eliminados de manera exitosa')
             ->back();
-    }
-
-    private function usuario(Request $request): Usuario
-    {
-        /** @var Usuario $usuario */
-        $usuario = $request->user();
-
-        return $usuario;
-    }
-
-    /**
-     * La persona "titular" del profesor con sesión (sus propios datos).
-     * Se crea al iniciar sesión (Parte 5) con los datos de bd_fca.
-     */
-    private function personaTitular(Request $request): PersonaContacto
-    {
-        $persona = $this->usuario($request)->datosPersonales;
-
-        abort_if($persona === null, 404, 'No hay datos personales registrados para este profesor.');
-
-        return $persona;
     }
 
     /**

@@ -15,11 +15,11 @@ import SacpaBoton from '@/components/sacpa/SacpaBoton.vue';
 import SacpaIcono from '@/components/sacpa/SacpaIcono.vue';
 import TablaSacpa from '@/components/sacpa/TablaSacpa.vue';
 import SistemaLayout from '@/layouts/SistemaLayout.vue';
+import { pestanasProfesor } from '@/lib/pestanasProfesor';
 import type {
     ColumnaTabla,
     DatosProfesor,
     OpcionSeleccion,
-    Pestana,
 } from '@/types/sacpa';
 
 type ContactoPersonal = {
@@ -39,15 +39,7 @@ const props = defineProps<{
     requiereActualizacion: boolean;
 }>();
 
-const pestanas: Pestana[] = [
-    { titulo: 'Datos personales', href: '/datos-personales', activa: true },
-    // La pantalla de emergencia se construye en la Parte 4.
-    {
-        titulo: 'Datos de emergencia',
-        href: '/datos-de-emergencia',
-        activa: false,
-    },
-];
+const pestanas = pestanasProfesor('personales');
 
 const columnas: ColumnaTabla[] = [
     { clave: 'medio', titulo: 'Medio' },

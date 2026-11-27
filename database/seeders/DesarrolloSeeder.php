@@ -27,7 +27,7 @@ class DesarrolloSeeder extends Seeder
     {
         $rolProfesor = Rol::where('rol_nombre_rol', Rol::PROFESOR)->firstOrFail();
 
-        $this->crearProfesor(
+        $jose = $this->crearProfesor(
             rolId: $rolProfesor->rol_id_rol,
             correo: self::CORREO_PROFESOR_PRUEBA,
             numeroTrabajador: '2903872',
@@ -55,23 +55,55 @@ class DesarrolloSeeder extends Seeder
             ],
         );
 
-        // Un contacto de emergencia de ejemplo (se usará en la Parte 4).
-        if ($otro->contactosEmergencia()->exists()) {
+        // Contactos de emergencia: [nombre, paterno, materno, parentesco, celular, alterno|null]
+        $this->crearContactosEmergencia($jose, '2903872', [
+            ['Ernesto José', 'López', 'Mejía', 'Otro', '5552993963', '5550193773'],
+            ['Antonio', 'Jiménez', 'Rosas', 'Hermano(a)', '5519372037', null],
+        ]);
+
+        $this->crearContactosEmergencia($otro, '1481193', [
+            ['Rosa', 'Arroyo', null, 'Madre', '5520000000', null],
+        ]);
+    }
+
+    /**
+     * @param  array<int, array{0: string, 1: string, 2: string|null, 3: string, 4: string, 5: string|null}>  $contactos
+     */
+    private function crearContactosEmergencia(Usuario $usuario, string $numeroTrabajador, array $contactos): void
+    {
+        // Si ya se había corrido el seeder, no se duplican.
+        if ($usuario->contactosEmergencia()->exists()) {
             return;
         }
 
-        $madre = PersonaContacto::create([
-            'peco_id_usuario' => $otro->usua_id_usuario,
-            'peco_id_parentesco' => Parentesco::where('pare_parentesco', 'Madre')->value('pare_id_parentesco'),
-            'peco_numero_trabajador' => '1481193',
-            'peco_nombre' => 'Rosa',
-            'peco_apellido_paterno' => 'Arroyo',
-        ]);
-        $madre->contactos()->create([
-            'cont_id_tipo_contacto' => TipoContacto::where('tico_tipo_contacto', 'Celular')->value('tico_id_tipo_contacto'),
-            'cont_descripcion' => '5520000000',
-            'cont_es_principal' => true,
-        ]);
+        $celular = TipoContacto::where('tico_tipo_contacto', 'Celular')->value('tico_id_tipo_contacto');
+        $casa = TipoContacto::where('tico_tipo_contacto', 'Casa')->value('tico_id_tipo_contacto');
+
+        foreach ($contactos as [$nombre, $paterno, $materno, $parentesco, $telefonoCelular, $telefonoAlterno]) {
+            $persona = PersonaContacto::create([
+                'peco_id_usuario' => $usuario->usua_id_usuario,
+                'peco_id_parentesco' => Parentesco::where('pare_parentesco', $parentesco)->value('pare_id_parentesco'),
+                'peco_numero_trabajador' => $numeroTrabajador,
+                'peco_nombre' => $nombre,
+                'peco_apellido_paterno' => $paterno,
+                'peco_apellido_materno' => $materno,
+            ]);
+            $persona->forceFill(['peco_fecha_ultima_actualizacion' => Carbon::today()->subMonths(2)])->saveQuietly();
+
+            $persona->contactos()->create([
+                'cont_id_tipo_contacto' => $celular,
+                'cont_descripcion' => $telefonoCelular,
+                'cont_es_principal' => true,
+            ]);
+
+            if ($telefonoAlterno !== null) {
+                $persona->contactos()->create([
+                    'cont_id_tipo_contacto' => $casa,
+                    'cont_descripcion' => $telefonoAlterno,
+                    'cont_es_principal' => false,
+                ]);
+            }
+        }
     }
 
     /**

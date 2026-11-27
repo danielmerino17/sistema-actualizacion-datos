@@ -1,5 +1,11 @@
 <?php
 
+use App\Models\Contacto;
+use App\Models\Parentesco;
+use App\Models\PersonaContacto;
+use App\Models\Rol;
+use App\Models\TipoContacto;
+use App\Models\Usuario;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,7 +50,66 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Crea un usuario con su persona titular (sus "datos personales").
+ * Requiere haber sembrado CatalogosSeeder y RolesSeeder.
+ */
+function crearProfesor(string $numero = '2903872', string $rol = Rol::PROFESOR, bool $activo = true): Usuario
 {
-    // ..
+    $usuario = Usuario::create([
+        'usua_id_rol' => Rol::where('rol_nombre_rol', $rol)->value('rol_id_rol'),
+        'usua_nombre' => 'Profesor',
+        'usua_apellido_paterno' => "Prueba {$numero}",
+        'usua_correo' => "{$numero}@prueba.test",
+        'usua_activo' => $activo,
+    ]);
+
+    $usuario->personas()->create([
+        'peco_numero_trabajador' => $numero,
+        'peco_nombre' => 'Profesor',
+        'peco_apellido_paterno' => "Prueba {$numero}",
+    ]);
+
+    return $usuario;
+}
+
+/** Id del catálogo tipo_contacto (Correo, Celular, Casa...). */
+function tipo(string $nombre): int
+{
+    return TipoContacto::where('tico_tipo_contacto', $nombre)->value('tico_id_tipo_contacto');
+}
+
+/** Id del catálogo parentesco (Madre, Padre, Hermano(a)...). */
+function parentesco(string $nombre): int
+{
+    return Parentesco::where('pare_parentesco', $nombre)->value('pare_id_parentesco');
+}
+
+/** Agrega un correo o teléfono a los datos personales del profesor. */
+function agregarContacto(Usuario $usuario, string $tipo, string $descripcion, bool $principal = false): Contacto
+{
+    return $usuario->datosPersonales->contactos()->create([
+        'cont_id_tipo_contacto' => tipo($tipo),
+        'cont_descripcion' => $descripcion,
+        'cont_es_principal' => $principal,
+    ]);
+}
+
+/** Agrega un contacto de emergencia (con su celular) al profesor. */
+function agregarEmergencia(Usuario $usuario, string $nombre = 'Rosa', string $parentesco = 'Madre', string $celular = '5520000000'): PersonaContacto
+{
+    $persona = $usuario->personas()->create([
+        'peco_id_parentesco' => parentesco($parentesco),
+        'peco_numero_trabajador' => $usuario->datosPersonales->peco_numero_trabajador,
+        'peco_nombre' => $nombre,
+        'peco_apellido_paterno' => 'López',
+    ]);
+
+    $persona->contactos()->create([
+        'cont_id_tipo_contacto' => tipo('Celular'),
+        'cont_descripcion' => $celular,
+        'cont_es_principal' => true,
+    ]);
+
+    return $persona;
 }
