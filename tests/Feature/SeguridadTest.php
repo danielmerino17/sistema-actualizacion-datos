@@ -67,7 +67,31 @@ test('un profesor que ya entró antes sigue entrando a su propia cuenta', functi
 test('los accesos de prueba no existen fuera de desarrollo', function (string $ruta) {
     $this->get($ruta)->assertNotFound();
     $this->assertGuest();
-})->with(['/dev/entrar-como-admin', '/dev/entrar-como-profesor', '/demo/componentes']);
+})->with(['/dev/entrar-como-admin', '/dev/entrar-como-profesor']);
+
+// ------------------------------------------------- Mensajes en español
+
+test('después de 5 intentos de login por minuto se muestra un mensaje en el formulario', function () {
+    bdFcaDePrueba(['2903872' => 'JIHJ800101AB1']);
+
+    foreach (range(1, 5) as $intento) {
+        $this->from('/')->post('/login', ['numero_trabajador' => '9999999', 'rfc' => 'XXXX000000XX0']);
+    }
+
+    $respuesta = $this->from('/')->post('/login', ['numero_trabajador' => '2903872', 'rfc' => 'JIHJ800101AB1']);
+
+    $respuesta->assertRedirect('/')->assertSessionHasErrors('numero_trabajador');
+    expect(session('errors')->first('numero_trabajador'))->toStartWith('Demasiados intentos.');
+    $this->assertGuest();
+});
+
+test('los mensajes de validación genéricos salen en español', function () {
+    $this->from('/')
+        ->post('/login', ['numero_trabajador' => '12345678901', 'rfc' => 'JIHJ800101AB1'])
+        ->assertSessionHasErrors([
+            'numero_trabajador' => 'El campo número de trabajador no puede tener más de 7 caracteres.',
+        ]);
+});
 
 // ------------------------------------------------- 5. Excel sin fórmulas
 

@@ -17,7 +17,7 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="SACPA - Login" />
+    <Head title="Iniciar sesión" />
 
     <InstitucionalLayout>
         <div
