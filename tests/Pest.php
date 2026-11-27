@@ -6,7 +6,10 @@ use App\Models\PersonaContacto;
 use App\Models\Rol;
 use App\Models\TipoContacto;
 use App\Models\Usuario;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /*
@@ -93,6 +96,60 @@ function agregarContacto(Usuario $usuario, string $tipo, string $descripcion, bo
         'cont_descripcion' => $descripcion,
         'cont_es_principal' => $principal,
     ]);
+}
+
+/**
+ * bd_fca EN MEMORIA con las tablas y columnas que usa el sistema
+ * (nunca se toca una base real).
+ *
+ * Cada profesor: número => RFC, o número => [rfc, nombre, paterno, materno, correo].
+ *
+ * @param  array<string, string|array{rfc: string, nombre?: string, paterno?: string, materno?: string|null, correo?: string|null}>  $profesores
+ */
+function bdFcaDePrueba(array $profesores): void
+{
+    config(['database.connections.pgsql_fca' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']]);
+    DB::purge('pgsql_fca');
+
+    $schema = Schema::connection('pgsql_fca');
+    $schema->create('persona', function (Blueprint $table) {
+        $table->increments('pers_id_persona');
+        $table->string('pers_nombre')->default('Profesor');
+        $table->string('pers_apaterno')->default('Prueba');
+        $table->string('pers_amaterno')->nullable();
+        $table->string('pers_rfc', 13);
+    });
+    $schema->create('profesor', function (Blueprint $table) {
+        $table->increments('prof_id_profesor');
+        $table->unsignedInteger('prof_id_persona');
+        $table->string('prof_num_unam', 10);
+    });
+    $schema->create('comunicacion', function (Blueprint $table) {
+        $table->increments('comu_id_comunicacion');
+        $table->unsignedInteger('comu_id_persona');
+        $table->string('comu_numero');
+        $table->boolean('comu_es_principal')->nullable();
+    });
+
+    foreach ($profesores as $numero => $datos) {
+        $datos = is_string($datos) ? ['rfc' => $datos] : $datos;
+
+        $id = DB::connection('pgsql_fca')->table('persona')->insertGetId([
+            'pers_rfc' => $datos['rfc'],
+            'pers_nombre' => $datos['nombre'] ?? 'Profesor',
+            'pers_apaterno' => $datos['paterno'] ?? 'Prueba',
+            'pers_amaterno' => $datos['materno'] ?? null,
+        ]);
+        DB::connection('pgsql_fca')->table('profesor')->insert(['prof_id_persona' => $id, 'prof_num_unam' => (string) $numero]);
+
+        if (! empty($datos['correo'])) {
+            DB::connection('pgsql_fca')->table('comunicacion')->insert([
+                'comu_id_persona' => $id,
+                'comu_numero' => $datos['correo'],
+                'comu_es_principal' => true,
+            ]);
+        }
+    }
 }
 
 /** Agrega un contacto de emergencia (con su celular) al profesor. */

@@ -19,6 +19,12 @@ class GuardarContactoEmergenciaRequest extends FormRequest
     /** 10 dígitos, permitiendo espacios, guiones, puntos o paréntesis entre ellos. */
     private const FORMATO_TELEFONO = '/^[\s\-().]*(\d[\s\-().]*){10}$/';
 
+    /**
+     * Nombres y apellidos: letras (con acentos y ñ), espacios, apóstrofo, punto y guion.
+     * Además de cuidar los datos, impide textos como "=HYPERLINK(...)".
+     */
+    private const FORMATO_NOMBRE = "/^\pL[\pL\s'.\-]*$/u";
+
     public function authorize(): bool
     {
         // Quién puede entrar lo controlan las rutas (auth + rol:Profesor).
@@ -43,9 +49,9 @@ class GuardarContactoEmergenciaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre' => ['required', 'string', 'max:40'],
-            'apellido_paterno' => ['required', 'string', 'max:30'],
-            'apellido_materno' => ['nullable', 'string', 'max:30'],
+            'nombre' => ['required', 'string', 'max:40', 'regex:'.self::FORMATO_NOMBRE],
+            'apellido_paterno' => ['required', 'string', 'max:30', 'regex:'.self::FORMATO_NOMBRE],
+            'apellido_materno' => ['nullable', 'string', 'max:30', 'regex:'.self::FORMATO_NOMBRE],
             'parentesco' => ['required', 'integer', Rule::exists('parentesco', 'pare_id_parentesco')],
             'telefono_celular' => ['required', 'string', 'max:20', 'regex:'.self::FORMATO_TELEFONO],
             'telefono_alterno' => ['nullable', 'string', 'max:20', 'regex:'.self::FORMATO_TELEFONO],
@@ -60,6 +66,9 @@ class GuardarContactoEmergenciaRequest extends FormRequest
         return [
             'nombre.required' => 'Escribe el nombre.',
             'nombre.max' => 'El nombre no puede tener más de 40 caracteres.',
+            'nombre.regex' => 'El nombre solo puede tener letras y espacios.',
+            'apellido_paterno.regex' => 'El apellido paterno solo puede tener letras y espacios.',
+            'apellido_materno.regex' => 'El apellido materno solo puede tener letras y espacios.',
             'apellido_paterno.required' => 'Escribe el apellido paterno.',
             'apellido_paterno.max' => 'El apellido paterno no puede tener más de 30 caracteres.',
             'apellido_materno.max' => 'El apellido materno no puede tener más de 30 caracteres.',

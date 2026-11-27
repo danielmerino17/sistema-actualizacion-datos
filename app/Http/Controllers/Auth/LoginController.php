@@ -58,37 +58,32 @@ class LoginController extends Controller
         if ($personaExistente?->usuario !== null) {
             $usuario = $personaExistente->usuario;
         } else {
-            $correo = filled($registro->correo)
-                ? mb_strtolower(trim((string) $registro->correo))
-                : "{$numeroTrabajador}@fca.unam.mx";
-
+            // Primer ingreso: SIEMPRE se crea un usuario nuevo, ligado a su número
+            // de trabajador. Nunca se busca un usuario por correo: si el correo de
+            // bd_fca lo comparte otra persona (ej. un correo de departamento), se
+            // entraría a la cuenta de esa persona.
+            $correo = $this->correoDisponible($registro->correo, $numeroTrabajador);
             $rolProfesorId = (int) Rol::where('rol_nombre_rol', Rol::PROFESOR)->value('rol_id_rol');
 
             $usuario = DB::transaction(function () use ($rolProfesorId, $correo, $numeroTrabajador, $registro): Usuario {
-                // firstOrCreate (no updateOrCreate): si ya existe un usuario con ese
-                // correo, no se le cambia el rol ni se reactiva si estaba desactivado.
-                $usuario = Usuario::firstOrCreate(
-                    ['usua_correo' => $correo],
-                    [
-                        'usua_id_rol' => $rolProfesorId,
-                        'usua_nombre' => trim((string) $registro->pers_nombre),
-                        'usua_apellido_paterno' => trim((string) $registro->pers_apaterno),
-                        'usua_apellido_materno' => filled($registro->pers_amaterno)
-                            ? trim((string) $registro->pers_amaterno)
-                            : null,
-                        'usua_activo' => true,
-                    ],
-                );
+                $usuario = Usuario::create([
+                    'usua_id_rol' => $rolProfesorId,
+                    'usua_nombre' => trim((string) $registro->pers_nombre),
+                    'usua_apellido_paterno' => trim((string) $registro->pers_apaterno),
+                    'usua_apellido_materno' => filled($registro->pers_amaterno)
+                        ? trim((string) $registro->pers_amaterno)
+                        : null,
+                    'usua_correo' => $correo,
+                    'usua_activo' => true,
+                ]);
 
-                $usuario->datosPersonales()->firstOrCreate(
-                    ['peco_id_parentesco' => null],
-                    [
-                        'peco_numero_trabajador' => $numeroTrabajador,
-                        'peco_nombre' => $usuario->usua_nombre,
-                        'peco_apellido_paterno' => $usuario->usua_apellido_paterno,
-                        'peco_apellido_materno' => $usuario->usua_apellido_materno,
-                    ],
-                );
+                // Su persona titular (sin parentesco) con el número de trabajador.
+                $usuario->personas()->create([
+                    'peco_numero_trabajador' => $numeroTrabajador,
+                    'peco_nombre' => $usuario->usua_nombre,
+                    'peco_apellido_paterno' => $usuario->usua_apellido_paterno,
+                    'peco_apellido_materno' => $usuario->usua_apellido_materno,
+                ]);
 
                 return $usuario;
             });
@@ -108,6 +103,29 @@ class LoginController extends Controller
 
         // Administrador → búsqueda de profesores; Profesor → sus datos personales.
         return redirect()->to($usuario->rutaInicio());
+    }
+
+    /**
+     * Correo para un usuario nuevo: el de bd_fca si nadie más lo usa; si no,
+     * uno de respaldo con su número de trabajador.
+     */
+    private function correoDisponible(mixed $correoFca, string $numeroTrabajador): string
+    {
+        $candidatos = array_filter([
+            filled($correoFca) ? mb_strtolower(trim((string) $correoFca)) : null,
+            "{$numeroTrabajador}@fca.unam.mx",
+        ]);
+
+        foreach ($candidatos as $correo) {
+            if (! Usuario::where('usua_correo', $correo)->exists()) {
+                return $correo;
+            }
+        }
+
+        // Solo pasaría si alguien más ya tiene el correo de respaldo con este número.
+        throw ValidationException::withMessages([
+            'numero_trabajador' => 'No fue posible crear tu usuario. Comunícate con la coordinación.',
+        ]);
     }
 
     public function destroy(Request $request): RedirectResponse
