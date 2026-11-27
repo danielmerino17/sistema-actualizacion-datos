@@ -4,6 +4,8 @@ namespace App\Support;
 
 use App\Models\PersonaContacto;
 use Illuminate\Support\Str;
+use OpenSpout\Common\Entity\Cell;
+use OpenSpout\Common\Entity\Cell\StringCell;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Common\Entity\Style\Style;
 use OpenSpout\Writer\XLSX\Writer;
@@ -12,6 +14,10 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 /**
  * Genera los archivos .xlsx que descarga el administrador
  * (ej. DatosPersonales_Torres.xlsx, DatosEmergencia_Torres.xlsx, como en el Figma).
+ *
+ * Seguridad: todos los textos se escriben como TEXTO, nunca como fórmula.
+ * OpenSpout convierte en fórmula cualquier texto que empiece con "=", y
+ * los datos los escriben los profesores (ej. "=HYPERLINK(...)" en un nombre).
  */
 class ExportadorExcel
 {
@@ -28,18 +34,18 @@ class ExportadorExcel
         $writer = new Writer;
         $writer->openToFile($ruta);
 
-        $writer->addRow(Row::fromValues([$titulo], $negrita));
-        $writer->addRow(Row::fromValues([
+        $writer->addRow($this->fila([$titulo], $negrita));
+        $writer->addRow($this->fila([
             'Profesor:',
             trim("{$profesor->peco_nombre} {$profesor->peco_apellido_paterno} {$profesor->peco_apellido_materno}"),
         ]));
-        $writer->addRow(Row::fromValues(['Número de trabajador:', $profesor->peco_numero_trabajador]));
-        $writer->addRow(Row::fromValues(['Fecha de descarga:', now()->format('d/m/Y H:i')]));
-        $writer->addRow(Row::fromValues([]));
-        $writer->addRow(Row::fromValues($columnas, $negrita));
+        $writer->addRow($this->fila(['Número de trabajador:', $profesor->peco_numero_trabajador]));
+        $writer->addRow($this->fila(['Fecha de descarga:', now()->format('d/m/Y H:i')]));
+        $writer->addRow($this->fila([]));
+        $writer->addRow($this->fila($columnas, $negrita));
 
         foreach ($filas as $fila) {
-            $writer->addRow(Row::fromValues(array_values($fila)));
+            $writer->addRow($this->fila($fila));
         }
 
         $writer->close();
@@ -53,5 +59,22 @@ class ExportadorExcel
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             ])
             ->deleteFileAfterSend();
+    }
+
+    /**
+     * Fila donde cada texto es una celda de TEXTO (nunca fórmula).
+     *
+     * @param  array<int, string|int|null>  $valores
+     */
+    private function fila(array $valores, ?Style $estilo = null): Row
+    {
+        $celdas = array_map(
+            fn (string|int|null $valor): Cell => is_string($valor)
+                ? new StringCell($valor, null)
+                : Cell::fromValue($valor),
+            array_values($valores),
+        );
+
+        return new Row($celdas, $estilo);
     }
 }

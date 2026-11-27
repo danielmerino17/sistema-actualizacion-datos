@@ -7,9 +7,7 @@ use App\Models\Rol;
 use App\Models\Usuario;
 use Database\Seeders\CatalogosSeeder;
 use Database\Seeders\RolesSeeder;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Testing\AssertableInertia as Assert;
 use OpenSpout\Reader\XLSX\Reader;
 
@@ -39,31 +37,7 @@ function profesorConNombre(string $numero, string $nombre, string $paterno, ?str
     return $usuario->fresh();
 }
 
-/**
- * bd_fca en memoria con lo mínimo para buscar por RFC (nunca se toca una base real).
- *
- * @param  array<string, string>  $rfcPorNumero
- */
-function bdFcaDePrueba(array $rfcPorNumero): void
-{
-    config(['database.connections.pgsql_fca' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']]);
-    DB::purge('pgsql_fca');
-
-    Schema::connection('pgsql_fca')->create('persona', function (Blueprint $table) {
-        $table->increments('pers_id_persona');
-        $table->string('pers_rfc', 13);
-    });
-    Schema::connection('pgsql_fca')->create('profesor', function (Blueprint $table) {
-        $table->increments('prof_id_profesor');
-        $table->unsignedInteger('prof_id_persona');
-        $table->string('prof_num_unam', 10);
-    });
-
-    foreach ($rfcPorNumero as $numero => $rfc) {
-        $id = DB::connection('pgsql_fca')->table('persona')->insertGetId(['pers_rfc' => $rfc]);
-        DB::connection('pgsql_fca')->table('profesor')->insert(['prof_id_persona' => $id, 'prof_num_unam' => $numero]);
-    }
-}
+// bdFcaDePrueba() está en tests/Pest.php
 
 // ---------------------------------------------------------------- Acceso
 

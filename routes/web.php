@@ -85,11 +85,11 @@ Route::middleware(['auth', 'rol:'.Rol::ADMINISTRADOR])
 
 /*
 |--------------------------------------------------------------------------
-| Solo en desarrollo (APP_ENV=local)
+| Solo en desarrollo (APP_ENV=local y SACPA_ACCESOS_PRUEBA=true)
 |--------------------------------------------------------------------------
-| En el servidor estas rutas no se registran.
+| En el servidor estas rutas no se registran. Ver config/sacpa.php.
 */
-if (app()->isLocal()) {
+if (app()->isLocal() && config('sacpa.accesos_prueba')) {
     // Muestra de componentes de la Parte 2.
     Route::inertia('/demo/componentes', 'Demo/Componentes')->name('demo.componentes');
 

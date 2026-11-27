@@ -20,8 +20,8 @@ class DatabaseSeeder extends Seeder
             RolesSeeder::class,
         ]);
 
-        // Profesores inventados para trabajar sin bd_fca (solo en local).
-        if (app()->isLocal()) {
+        // Usuarios inventados para trabajar sin bd_fca (solo con accesos de prueba).
+        if (app()->isLocal() && config('sacpa.accesos_prueba')) {
             $this->call(DesarrolloSeeder::class);
         }
 
