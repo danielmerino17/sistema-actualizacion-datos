@@ -45,6 +45,16 @@ class Usuario extends Authenticatable
     }
 
     /**
+     * Pantalla a la que va el usuario al iniciar sesión, según su rol.
+     */
+    public function rutaInicio(): string
+    {
+        return $this->tieneRol(Rol::ADMINISTRADOR)
+            ? route('admin.buscar')
+            : route('datos-personales.index');
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

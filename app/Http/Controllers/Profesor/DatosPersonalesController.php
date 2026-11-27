@@ -7,15 +7,18 @@ use App\Models\Bitacora;
 use App\Models\Contacto;
 use App\Models\PersonaContacto;
 use App\Models\TipoContacto;
+use App\Support\ExportadorExcel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
- * Pantalla "Datos personales" del profesor: sus correos y teléfonos.
- * Cada profesor solo puede ver y modificar SUS datos (ver ProfesorController).
+ * Pantalla "Datos personales": correos y teléfonos del profesor.
+ * La usan el profesor (sus datos) y el administrador (los de un profesor);
+ * ver ProfesorController.
  */
 class DatosPersonalesController extends ProfesorController
 {
@@ -25,7 +28,7 @@ class DatosPersonalesController extends ProfesorController
         $persona->load(['contactos' => fn ($consulta) => $consulta->orderBy('cont_id_contacto'), 'contactos.tipo']);
 
         return Inertia::render('Profesor/DatosPersonales', [
-            ...$this->encabezado($persona),
+            ...$this->encabezado($request, $persona),
             'contactos' => $persona->contactos->map(fn (Contacto $contacto) => [
                 'id' => $contacto->cont_id_contacto,
                 'tipoId' => $contacto->cont_id_tipo_contacto,
@@ -61,10 +64,10 @@ class DatosPersonalesController extends ProfesorController
             ->back();
     }
 
-    public function update(GuardarDatoPersonalRequest $request, int $contacto): RedirectResponse
+    public function update(GuardarDatoPersonalRequest $request): RedirectResponse
     {
         $persona = $this->personaTitular($request);
-        $registro = $this->contactoDelProfesor($persona, $contacto);
+        $registro = $this->contactoDelProfesor($persona, $this->idDeRuta($request, 'contacto'));
         $datos = $request->datosContacto();
 
         DB::transaction(function () use ($request, $persona, $registro, $datos): void {
@@ -81,10 +84,10 @@ class DatosPersonalesController extends ProfesorController
             ->back();
     }
 
-    public function destroy(Request $request, int $contacto): RedirectResponse
+    public function destroy(Request $request): RedirectResponse
     {
         $persona = $this->personaTitular($request);
-        $registro = $this->contactoDelProfesor($persona, $contacto);
+        $registro = $this->contactoDelProfesor($persona, $this->idDeRuta($request, 'contacto'));
 
         DB::transaction(function () use ($request, $persona, $registro): void {
             $registro->delete();
@@ -94,6 +97,30 @@ class DatosPersonalesController extends ProfesorController
 
         return Inertia::flash('exito', 'Datos eliminados de manera exitosa')
             ->back();
+    }
+
+    /**
+     * Descarga en Excel (solo administrador; ver rutas).
+     */
+    public function excel(Request $request, ExportadorExcel $exportador): BinaryFileResponse
+    {
+        $persona = $this->personaTitular($request);
+        $persona->load(['contactos' => fn ($consulta) => $consulta->orderBy('cont_id_contacto'), 'contactos.tipo']);
+
+        Bitacora::registrar($this->usuario($request), 'excel_datos_person');
+
+        return $exportador->descargar(
+            prefijo: 'DatosPersonales',
+            titulo: 'Datos personales',
+            profesor: $persona,
+            columnas: ['Medio', 'Datos de contacto', 'Tipo de uso', 'Última fecha de actualización'],
+            filas: $persona->contactos->map(fn (Contacto $contacto) => [
+                $contacto->tipo->tico_tipo_contacto,
+                $contacto->cont_descripcion,
+                $contacto->cont_es_principal ? 'Principal' : 'Secundario',
+                $contacto->cont_fecha_actualizacion->format('d/m/Y'),
+            ]),
+        );
     }
 
     /**

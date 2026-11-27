@@ -14,14 +14,17 @@ use Illuminate\Support\Carbon;
  * Datos INVENTADOS para trabajar en local sin bd_fca.
  * Solo se corre cuando APP_ENV=local (ver DatabaseSeeder).
  *
- * Crea dos profesores de prueba:
+ * Crea usuarios de prueba:
  *  - José Martín (2903872): el que usa el acceso de prueba /dev/entrar-como-profesor.
  *    Su última actualización es de hace 7 meses, para que salga el aviso amarillo.
  *  - Luis Miguel (1481193): otro profesor, para comprobar que nadie ve datos ajenos.
+ *  - Coordinación Prueba (9000001): administrador, entra con /dev/entrar-como-admin.
  */
 class DesarrolloSeeder extends Seeder
 {
     public const CORREO_PROFESOR_PRUEBA = 'profesor.prueba@sacpa.test';
+
+    public const CORREO_ADMIN_PRUEBA = 'admin.prueba@sacpa.test';
 
     public function run(): void
     {
@@ -53,6 +56,18 @@ class DesarrolloSeeder extends Seeder
             contactos: [
                 ['Correo', 'luismito@prueba.test', true],
             ],
+        );
+
+        // Administrador de prueba (entra con /dev/entrar-como-admin).
+        $this->crearProfesor(
+            rolId: Rol::where('rol_nombre_rol', Rol::ADMINISTRADOR)->value('rol_id_rol'),
+            correo: self::CORREO_ADMIN_PRUEBA,
+            numeroTrabajador: '9000001',
+            nombre: 'Coordinación',
+            apellidoPaterno: 'Prueba',
+            apellidoMaterno: 'Admin',
+            ultimaActualizacion: Carbon::today(),
+            contactos: [],
         );
 
         // Contactos de emergencia: [nombre, paterno, materno, parentesco, celular, alterno|null]

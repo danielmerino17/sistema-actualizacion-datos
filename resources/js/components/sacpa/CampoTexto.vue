@@ -11,12 +11,15 @@ withDefaults(
         tipo?: 'text' | 'email' | 'tel';
         maximo?: number;
         requerido?: boolean;
+        // Ancho fijo de la etiqueta para alinear varios campos (ej. 'w-32').
+        anchoEtiqueta?: string;
     }>(),
     {
         error: undefined,
         tipo: 'text',
         maximo: undefined,
         requerido: false,
+        anchoEtiqueta: undefined,
     },
 );
 
@@ -26,7 +29,13 @@ const modelo = defineModel<string>({ default: '' });
 <template>
     <div class="flex flex-col gap-1">
         <div class="flex items-center gap-3">
-            <label :for="id" class="shrink-0 text-sm font-bold text-black">
+            <label
+                :for="id"
+                :class="[
+                    'shrink-0 text-sm font-bold text-black',
+                    anchoEtiqueta,
+                ]"
+            >
                 {{ etiqueta }}
             </label>
             <input
