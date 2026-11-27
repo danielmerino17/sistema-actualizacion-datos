@@ -13,6 +13,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use stdClass;
+use Throwable;
 
 class LoginController extends Controller
 {
@@ -21,29 +23,13 @@ class LoginController extends Controller
         $numeroTrabajador = (string) $request->input('numero_trabajador');
         $rfc = (string) $request->input('rfc');
 
-        $correoSubquery = DB::connection('pgsql_fca')
-            ->table('comunicacion as co')
-            ->select('co.comu_numero')
-            ->whereColumn('co.comu_id_persona', 'pe.pers_id_persona')
-            ->where('co.comu_numero', 'LIKE', '%@%')
-            ->orderByRaw('co.comu_es_principal DESC NULLS LAST')
-            ->limit(1);
-
         // 1. Validar número de trabajador y RFC en bd_fca
-        $registro = DB::connection('pgsql_fca')
-            ->table('persona as pe')
-            ->join('profesor as pr', 'pr.prof_id_persona', '=', 'pe.pers_id_persona')
-            ->whereRaw('TRIM(pr.prof_num_unam) = ?', [$numeroTrabajador])
-            ->whereRaw('UPPER(TRIM(pe.pers_rfc)) = ?', [$rfc])
-            ->select([
-                'pe.pers_nombre',
-                'pe.pers_apaterno',
-                'pe.pers_amaterno',
-            ])
-            ->selectSub($correoSubquery, 'correo')
-            ->first();
+        $registro = $this->buscarEnBdFca($numeroTrabajador, $rfc);
 
         if ($registro === null) {
+            // Se registra el número y la IP para detectar intentos con datos ajenos (nunca el RFC).
+            Bitacora::registrar(null, 'login_fallido', detalle: $this->detalleAcceso($request, $numeroTrabajador));
+
             throw ValidationException::withMessages([
                 'numero_trabajador' => 'El número de trabajador o el RFC no coinciden con nuestros registros.',
             ]);
@@ -91,6 +77,8 @@ class LoginController extends Controller
 
         // Un usuario desactivado no puede entrar (antes entraba y veía un error 403).
         if (! $usuario->usua_activo) {
+            Bitacora::registrar(null, 'login_desactivado', $usuario, $this->detalleAcceso($request, $numeroTrabajador));
+
             throw ValidationException::withMessages([
                 'numero_trabajador' => 'Tu usuario está desactivado. Comunícate con la coordinación.',
             ]);
@@ -99,7 +87,7 @@ class LoginController extends Controller
         // 3. Iniciar sesión y registrar en bitácora
         Auth::login($usuario);
         $request->session()->regenerate();
-        Bitacora::registrar($usuario, 'inicio_sesion');
+        Bitacora::registrar($usuario, 'inicio_sesion', $usuario, $this->detalleAcceso($request, $numeroTrabajador));
 
         // Administrador → búsqueda de profesores; Profesor → sus datos personales.
         return redirect()->to($usuario->rutaInicio());
@@ -128,8 +116,58 @@ class LoginController extends Controller
         ]);
     }
 
+    /**
+     * Busca al profesor en bd_fca por número de trabajador y RFC.
+     * Si bd_fca no responde, muestra un mensaje claro en lugar de un error 500.
+     */
+    private function buscarEnBdFca(string $numeroTrabajador, string $rfc): ?stdClass
+    {
+        try {
+            $correoSubquery = DB::connection('pgsql_fca')
+                ->table('comunicacion as co')
+                ->select('co.comu_numero')
+                ->whereColumn('co.comu_id_persona', 'pe.pers_id_persona')
+                ->where('co.comu_numero', 'LIKE', '%@%')
+                ->orderByRaw('co.comu_es_principal DESC NULLS LAST')
+                ->limit(1);
+
+            return DB::connection('pgsql_fca')
+                ->table('persona as pe')
+                ->join('profesor as pr', 'pr.prof_id_persona', '=', 'pe.pers_id_persona')
+                ->whereRaw('TRIM(pr.prof_num_unam) = ?', [$numeroTrabajador])
+                ->whereRaw('UPPER(TRIM(pe.pers_rfc)) = ?', [$rfc])
+                ->select([
+                    'pe.pers_nombre',
+                    'pe.pers_apaterno',
+                    'pe.pers_amaterno',
+                ])
+                ->selectSub($correoSubquery, 'correo')
+                ->first();
+        } catch (Throwable $e) {
+            report($e); // queda en storage/logs para revisar la conexión
+
+            throw ValidationException::withMessages([
+                'numero_trabajador' => 'No fue posible validar tus datos en este momento. Intenta de nuevo en unos minutos.',
+            ]);
+        }
+    }
+
+    /**
+     * Detalle para la bitácora: número de trabajador e IP (nunca el RFC).
+     */
+    private function detalleAcceso(Request $request, string $numeroTrabajador): string
+    {
+        return 'No. trabajador '.mb_substr($numeroTrabajador, 0, 10).' desde IP '.$request->ip();
+    }
+
     public function destroy(Request $request): RedirectResponse
     {
+        $usuario = $request->user();
+
+        if ($usuario instanceof Usuario) {
+            Bitacora::registrar($usuario, 'cierre_sesion', $usuario);
+        }
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

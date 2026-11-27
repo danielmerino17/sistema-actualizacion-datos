@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Profesor;
 
 use App\Http\Requests\Profesor\GuardarDatoPersonalRequest;
-use App\Models\Bitacora;
 use App\Models\Contacto;
 use App\Models\PersonaContacto;
 use App\Models\TipoContacto;
@@ -26,6 +25,11 @@ class DatosPersonalesController extends ProfesorController
     {
         $persona = $this->personaTitular($request);
         $persona->load(['contactos' => fn ($consulta) => $consulta->orderBy('cont_id_contacto'), 'contactos.tipo']);
+
+        // Que un administrador vea los datos de un profesor queda registrado.
+        if ($this->vistaAdministrador($request)) {
+            $this->registrarEnBitacora($request, 'consulta_personales');
+        }
 
         return Inertia::render('Profesor/DatosPersonales', [
             ...$this->encabezado($request, $persona),
@@ -55,9 +59,9 @@ class DatosPersonalesController extends ProfesorController
                 $this->quitarPrincipal($persona, $datos['cont_id_tipo_contacto']);
             }
 
-            $persona->contactos()->create($datos);
+            $nuevo = $persona->contactos()->create($datos);
             $persona->save(); // actualiza la fecha de última actualización
-            Bitacora::registrar($this->usuario($request), 'crear_dato_personal');
+            $this->registrarEnBitacora($request, 'crear_dato_personal', "contacto #{$nuevo->cont_id_contacto}");
         });
 
         return Inertia::flash('exito', 'Datos creados de manera exitosa')
@@ -77,7 +81,7 @@ class DatosPersonalesController extends ProfesorController
 
             $registro->update($datos);
             $persona->save();
-            Bitacora::registrar($this->usuario($request), 'editar_dato_personal');
+            $this->registrarEnBitacora($request, 'editar_dato_personal', "contacto #{$registro->cont_id_contacto}");
         });
 
         return Inertia::flash('exito', 'Datos actualizados de manera exitosa')
@@ -92,7 +96,7 @@ class DatosPersonalesController extends ProfesorController
         DB::transaction(function () use ($request, $persona, $registro): void {
             $registro->delete();
             $persona->save();
-            Bitacora::registrar($this->usuario($request), 'borrar_dato_personal');
+            $this->registrarEnBitacora($request, 'borrar_dato_personal', "contacto #{$registro->cont_id_contacto}");
         });
 
         return Inertia::flash('exito', 'Datos eliminados de manera exitosa')
@@ -107,7 +111,7 @@ class DatosPersonalesController extends ProfesorController
         $persona = $this->personaTitular($request);
         $persona->load(['contactos' => fn ($consulta) => $consulta->orderBy('cont_id_contacto'), 'contactos.tipo']);
 
-        Bitacora::registrar($this->usuario($request), 'excel_datos_person');
+        $this->registrarEnBitacora($request, 'excel_datos_person');
 
         return $exportador->descargar(
             prefijo: 'DatosPersonales',

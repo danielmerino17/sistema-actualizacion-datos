@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Profesor;
 
 use App\Http\Requests\Profesor\GuardarContactoEmergenciaRequest;
-use App\Models\Bitacora;
 use App\Models\Contacto;
 use App\Models\Parentesco;
 use App\Models\PersonaContacto;
@@ -34,6 +33,11 @@ class DatosEmergenciaController extends ProfesorController
         $titular = $this->personaTitular($request);
 
         $contactos = $this->contactosDeEmergencia($request);
+
+        // Que un administrador vea los datos de un profesor queda registrado.
+        if ($this->vistaAdministrador($request)) {
+            $this->registrarEnBitacora($request, 'consulta_emergencia');
+        }
 
         return Inertia::render('Profesor/DatosEmergencia', [
             ...$this->encabezado($request, $titular),
@@ -69,7 +73,7 @@ class DatosEmergenciaController extends ProfesorController
 
             $this->guardarTelefonos($persona, $request);
             $titular->save(); // actualiza la fecha de última actualización del profesor
-            Bitacora::registrar($this->usuario($request), 'crear_emergencia');
+            $this->registrarEnBitacora($request, 'crear_emergencia', "contacto de emergencia #{$persona->peco_id_persona_contacto}");
         });
 
         return Inertia::flash('exito', 'Contacto de emergencia creado de manera exitosa')
@@ -85,7 +89,7 @@ class DatosEmergenciaController extends ProfesorController
             $registro->update($request->datosPersona());
             $this->guardarTelefonos($registro, $request);
             $titular->save();
-            Bitacora::registrar($this->usuario($request), 'editar_emergencia');
+            $this->registrarEnBitacora($request, 'editar_emergencia', "contacto de emergencia #{$registro->peco_id_persona_contacto}");
         });
 
         return Inertia::flash('exito', 'Contacto de emergencia actualizado de manera exitosa')
@@ -100,7 +104,7 @@ class DatosEmergenciaController extends ProfesorController
         DB::transaction(function () use ($request, $titular, $registro): void {
             $registro->delete(); // sus teléfonos se borran en cascada
             $titular->save();
-            Bitacora::registrar($this->usuario($request), 'borrar_emergencia');
+            $this->registrarEnBitacora($request, 'borrar_emergencia', "contacto de emergencia #{$registro->peco_id_persona_contacto}");
         });
 
         return Inertia::flash('exito', 'Contacto de emergencia eliminado de manera exitosa')
@@ -114,7 +118,7 @@ class DatosEmergenciaController extends ProfesorController
     {
         $titular = $this->personaTitular($request);
 
-        Bitacora::registrar($this->usuario($request), 'excel_emergencia');
+        $this->registrarEnBitacora($request, 'excel_emergencia');
 
         return $exportador->descargar(
             prefijo: 'DatosEmergencia',

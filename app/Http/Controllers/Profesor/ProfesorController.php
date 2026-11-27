@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Profesor;
 
 use App\Http\Controllers\Controller;
+use App\Models\Bitacora;
 use App\Models\PersonaContacto;
 use App\Models\Rol;
 use App\Models\Usuario;
@@ -100,6 +101,15 @@ abstract class ProfesorController extends Controller
             'rutaProfesor' => $this->rutaProfesor($request),
             'esAdministrador' => $this->vistaAdministrador($request),
         ];
+    }
+
+    /**
+     * Registra en la bitácora quién hizo la acción (usuario con sesión),
+     * a qué profesor afectó y qué registro se tocó.
+     */
+    protected function registrarEnBitacora(Request $request, string $accion, ?string $detalle = null): void
+    {
+        Bitacora::registrar($this->usuario($request), $accion, $this->profesor($request), $detalle);
     }
 
     /**
