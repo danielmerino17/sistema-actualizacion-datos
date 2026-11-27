@@ -106,7 +106,8 @@ class LoginController extends Controller
         $request->session()->regenerate();
         Bitacora::registrar($usuario, 'inicio_sesion');
 
-        return to_route('datos-personales.index');
+        // Administrador → búsqueda de profesores; Profesor → sus datos personales.
+        return redirect()->to($usuario->rutaInicio());
     }
 
     public function destroy(Request $request): RedirectResponse

@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\VerificarRol;
+use App\Models\Usuario;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -24,10 +25,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'rol' => VerificarRol::class,
         ]);
 
-        // Si alguien con sesión abre el login (/), se le manda a su pantalla.
-        // Sin esto Laravel redirige a "/" y se forma un ciclo infinito.
-        // TODO (Parte 6): enviar al administrador a su propia pantalla.
-        $middleware->redirectUsersTo(fn () => route('datos-personales.index'));
+        // Si alguien con sesión abre el login (/), se le manda a su pantalla
+        // según su rol. Sin esto Laravel redirige a "/" y se forma un ciclo infinito.
+        $middleware->redirectUsersTo(
+            fn (Request $request) => $request->user() instanceof Usuario
+                ? $request->user()->rutaInicio()
+                : route('datos-personales.index'),
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

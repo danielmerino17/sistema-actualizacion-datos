@@ -1,10 +1,11 @@
 <script setup lang="ts">
 /**
- * Pantalla "Datos de emergencia" del profesor (Figma, flujos 3, 4 y 5).
- * Lista sus contactos de emergencia y permite agregarlos, editarlos y eliminarlos.
+ * Pantalla "Datos de emergencia" (Figma, flujos 3, 4 y 5 de profesor y sección de administrador).
+ * Lista los contactos de emergencia del profesor y permite agregarlos, editarlos y eliminarlos.
+ * La usan el profesor (sus datos) y el administrador (rutaProfesor = '/admin/profesores/{id}').
  * Los datos llegan de DatosEmergenciaController@index.
  */
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import AvisoActualizacion from '@/components/sacpa/AvisoActualizacion.vue';
 import CampoSeleccion from '@/components/sacpa/CampoSeleccion.vue';
@@ -35,15 +36,22 @@ type ContactoEmergencia = {
     fecha: string | null;
 };
 
-defineProps<{
+const props = defineProps<{
     profesor: DatosProfesor;
     contactos: ContactoEmergencia[];
     parentescos: OpcionSeleccion[];
     ultimaActualizacion: string | null;
     requiereActualizacion: boolean;
+    rutaProfesor: string;
+    esAdministrador: boolean;
 }>();
 
-const pestanas = pestanasProfesor('emergencia');
+const pestanas = pestanasProfesor('emergencia', props.rutaProfesor);
+const rutaBase = `${props.rutaProfesor}/datos-de-emergencia`;
+
+function descargarExcel(): void {
+    window.location.href = `${rutaBase}/excel`;
+}
 
 const columnas: ColumnaTabla[] = [
     { clave: 'numero', titulo: 'No. Contacto' },
@@ -112,9 +120,9 @@ function enviar(): void {
     const opciones = { preserveScroll: true, onSuccess: cerrarFormulario };
 
     if (editando.value) {
-        form.put(`/datos-de-emergencia/${editando.value.id}`, opciones);
+        form.put(`${rutaBase}/${editando.value.id}`, opciones);
     } else {
-        form.post('/datos-de-emergencia', opciones);
+        form.post(rutaBase, opciones);
     }
 }
 
@@ -127,7 +135,7 @@ function eliminar(): void {
         return;
     }
 
-    router.delete(`/datos-de-emergencia/${porEliminar.value.id}`, {
+    router.delete(`${rutaBase}/${porEliminar.value.id}`, {
         preserveScroll: true,
         onStart: () => (eliminando.value = true),
         onFinish: () => {
@@ -142,6 +150,14 @@ function eliminar(): void {
     <Head title="Datos de emergencia" />
 
     <SistemaLayout :pestanas="pestanas" :profesor="profesor">
+        <Link
+            v-if="esAdministrador"
+            href="/admin"
+            class="mb-2 self-start text-sm font-semibold text-sacpa-azul hover:underline"
+        >
+            ← Buscar otro profesor
+        </Link>
+
         <p class="text-xs text-black">
             Estimado docente: usted puede modificar su información cuando lo
             considere necesario; con el fin de mantener los registros
@@ -161,6 +177,14 @@ function eliminar(): void {
                 @click="abrirAlta"
             >
                 Agregar
+            </SacpaBoton>
+            <SacpaBoton
+                v-if="esAdministrador"
+                variante="exito"
+                icono="descargar"
+                @click="descargarExcel"
+            >
+                Descargar Excel
             </SacpaBoton>
         </div>
 
@@ -226,7 +250,11 @@ function eliminar(): void {
                 :columnas="columnas"
                 :filas="contactos"
                 clave-fila="id"
-                texto-vacio="Todavía no has registrado contactos de emergencia. Usa el botón Agregar."
+                :texto-vacio="
+                    esAdministrador
+                        ? 'Este profesor todavía no tiene contactos de emergencia registrados.'
+                        : 'Todavía no has registrado contactos de emergencia. Usa el botón Agregar.'
+                "
             >
                 <template #celda-apellidoMaterno="{ fila }">
                     {{ fila.apellidoMaterno ?? '—' }}

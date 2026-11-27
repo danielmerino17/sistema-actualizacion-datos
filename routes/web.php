@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\BuscarProfesorController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Profesor\DatosEmergenciaController;
 use App\Http\Controllers\Profesor\DatosPersonalesController;
@@ -23,12 +24,11 @@ Route::post('/logout', [LoginController::class, 'destroy'])
     ->name('logout');
 
 /*
-|--------------------------------------------------------------------------
-| Profesor
-|--------------------------------------------------------------------------
-| Solo usuarios con sesión iniciada y rol Profesor.
+| Pantallas "Datos personales" y "Datos de emergencia".
+| Se registran dos veces: para el profesor (sus datos) y para el
+| administrador (los datos de un profesor, bajo /admin/profesores/{profesor}).
 */
-Route::middleware(['auth', 'rol:'.Rol::PROFESOR])->group(function () {
+$rutasDatosProfesor = function (): void {
     Route::controller(DatosPersonalesController::class)
         ->prefix('datos-personales')
         ->name('datos-personales.')
@@ -48,7 +48,40 @@ Route::middleware(['auth', 'rol:'.Rol::PROFESOR])->group(function () {
             Route::put('/{persona}', 'update')->whereNumber('persona')->name('update');
             Route::delete('/{persona}', 'destroy')->whereNumber('persona')->name('destroy');
         });
-});
+};
+
+/*
+|--------------------------------------------------------------------------
+| Profesor
+|--------------------------------------------------------------------------
+| Solo usuarios con sesión iniciada y rol Profesor.
+*/
+Route::middleware(['auth', 'rol:'.Rol::PROFESOR])->group($rutasDatosProfesor);
+
+/*
+|--------------------------------------------------------------------------
+| Administrador
+|--------------------------------------------------------------------------
+| Solo usuarios con sesión iniciada y rol Administrador.
+*/
+Route::middleware(['auth', 'rol:'.Rol::ADMINISTRADOR])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () use ($rutasDatosProfesor) {
+        Route::get('/', BuscarProfesorController::class)->name('buscar');
+
+        Route::prefix('profesores/{profesor}')
+            ->whereNumber('profesor')
+            ->name('profesores.')
+            ->group(function () use ($rutasDatosProfesor) {
+                $rutasDatosProfesor();
+
+                Route::get('datos-personales/excel', [DatosPersonalesController::class, 'excel'])
+                    ->name('datos-personales.excel');
+                Route::get('datos-de-emergencia/excel', [DatosEmergenciaController::class, 'excel'])
+                    ->name('datos-emergencia.excel');
+            });
+    });
 
 /*
 |--------------------------------------------------------------------------
@@ -69,14 +102,21 @@ if (app()->isLocal()) {
         return Inertia::flash($datos['tipo'], $datos['mensaje'])->back();
     })->name('demo.flash');
 
-    // Acceso de prueba mientras no existe el login real (Parte 5).
-    // Entra como el profesor inventado de DesarrolloSeeder.
-    Route::get('/dev/entrar-como-profesor', function (Request $request) {
-        $usuario = Usuario::where('usua_correo', DesarrolloSeeder::CORREO_PROFESOR_PRUEBA)->firstOrFail();
+    // Accesos de prueba para quien no tiene bd_fca en su máquina.
+    // Entran como los usuarios inventados de DesarrolloSeeder.
+    $entrarComo = function (string $correo) {
+        return function (Request $request) use ($correo) {
+            $usuario = Usuario::where('usua_correo', $correo)->firstOrFail();
 
-        Auth::login($usuario);
-        $request->session()->regenerate();
+            Auth::login($usuario);
+            $request->session()->regenerate();
 
-        return to_route('datos-personales.index');
-    })->name('dev.entrar-como-profesor');
+            return redirect()->to($usuario->rutaInicio());
+        };
+    };
+
+    Route::get('/dev/entrar-como-profesor', $entrarComo(DesarrolloSeeder::CORREO_PROFESOR_PRUEBA))
+        ->name('dev.entrar-como-profesor');
+    Route::get('/dev/entrar-como-admin', $entrarComo(DesarrolloSeeder::CORREO_ADMIN_PRUEBA))
+        ->name('dev.entrar-como-admin');
 }

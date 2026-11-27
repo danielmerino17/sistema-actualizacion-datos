@@ -1,10 +1,11 @@
 <script setup lang="ts">
 /**
- * Pantalla "Datos personales" del profesor (Figma, flujos 1 y 2).
- * Lista sus correos y teléfonos y permite agregarlos, editarlos y eliminarlos.
+ * Pantalla "Datos personales" (Figma, flujos 1 y 2 de profesor y sección de administrador).
+ * Lista los correos y teléfonos del profesor y permite agregarlos, editarlos y eliminarlos.
+ * La usan el profesor (sus datos) y el administrador (rutaProfesor = '/admin/profesores/{id}').
  * Los datos llegan de DatosPersonalesController@index.
  */
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import AvisoActualizacion from '@/components/sacpa/AvisoActualizacion.vue';
 import CampoSeleccion from '@/components/sacpa/CampoSeleccion.vue';
@@ -37,9 +38,16 @@ const props = defineProps<{
     tiposContacto: OpcionSeleccion[];
     ultimaActualizacion: string | null;
     requiereActualizacion: boolean;
+    rutaProfesor: string;
+    esAdministrador: boolean;
 }>();
 
-const pestanas = pestanasProfesor('personales');
+const pestanas = pestanasProfesor('personales', props.rutaProfesor);
+const rutaBase = `${props.rutaProfesor}/datos-personales`;
+
+function descargarExcel(): void {
+    window.location.href = `${rutaBase}/excel`;
+}
 
 const columnas: ColumnaTabla[] = [
     { clave: 'medio', titulo: 'Medio' },
@@ -107,9 +115,9 @@ function enviar(): void {
     const opciones = { preserveScroll: true, onSuccess: cerrarFormulario };
 
     if (editando.value) {
-        form.put(`/datos-personales/${editando.value.id}`, opciones);
+        form.put(`${rutaBase}/${editando.value.id}`, opciones);
     } else {
-        form.post('/datos-personales', opciones);
+        form.post(rutaBase, opciones);
     }
 }
 
@@ -122,7 +130,7 @@ function eliminar(): void {
         return;
     }
 
-    router.delete(`/datos-personales/${porEliminar.value.id}`, {
+    router.delete(`${rutaBase}/${porEliminar.value.id}`, {
         preserveScroll: true,
         onStart: () => (eliminando.value = true),
         onFinish: () => {
@@ -137,6 +145,14 @@ function eliminar(): void {
     <Head title="Datos personales" />
 
     <SistemaLayout :pestanas="pestanas" :profesor="profesor">
+        <Link
+            v-if="esAdministrador"
+            href="/admin"
+            class="mb-2 self-start text-sm font-semibold text-sacpa-azul hover:underline"
+        >
+            ← Buscar otro profesor
+        </Link>
+
         <p class="text-xs text-black">
             Estimado docente: usted puede modificar su información cuando lo
             considere necesario; con el fin de mantener los registros
@@ -156,6 +172,14 @@ function eliminar(): void {
                 @click="abrirAlta"
             >
                 Agregar
+            </SacpaBoton>
+            <SacpaBoton
+                v-if="esAdministrador"
+                variante="exito"
+                icono="descargar"
+                @click="descargarExcel"
+            >
+                Descargar Excel
             </SacpaBoton>
         </div>
 
@@ -198,7 +222,11 @@ function eliminar(): void {
                 :columnas="columnas"
                 :filas="filas"
                 clave-fila="id"
-                texto-vacio="Todavía no has registrado datos de contacto. Usa el botón Agregar."
+                :texto-vacio="
+                    esAdministrador
+                        ? 'Este profesor todavía no tiene datos de contacto registrados.'
+                        : 'Todavía no has registrado datos de contacto. Usa el botón Agregar.'
+                "
             >
                 <template #celda-medio="{ fila }">
                     <strong>{{ fila.medio }}</strong>

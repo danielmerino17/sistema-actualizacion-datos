@@ -8,14 +8,19 @@ use App\Models\Contacto;
 use App\Models\Parentesco;
 use App\Models\PersonaContacto;
 use App\Models\TipoContacto;
+use App\Support\ExportadorExcel;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
- * Pantalla "Datos de emergencia" del profesor (Figma, flujos 3, 4 y 5).
+ * Pantalla "Datos de emergencia" (Figma, flujos 3, 4 y 5).
+ * La usan el profesor (sus datos) y el administrador (los de un profesor);
+ * ver ProfesorController.
  *
  * Cada contacto de emergencia es una persona_contacto con parentesco que
  * pertenece al profesor. Sus teléfonos se guardan en la tabla contacto:
@@ -28,13 +33,10 @@ class DatosEmergenciaController extends ProfesorController
     {
         $titular = $this->personaTitular($request);
 
-        $contactos = $this->usuario($request)->contactosEmergencia()
-            ->with(['parentesco', 'contactos'])
-            ->orderBy('peco_id_persona_contacto')
-            ->get();
+        $contactos = $this->contactosDeEmergencia($request);
 
         return Inertia::render('Profesor/DatosEmergencia', [
-            ...$this->encabezado($titular),
+            ...$this->encabezado($request, $titular),
             'contactos' => $contactos->values()->map(fn (PersonaContacto $persona, int $indice) => [
                 'id' => $persona->peco_id_persona_contacto,
                 'numero' => $indice + 1,
@@ -60,7 +62,7 @@ class DatosEmergenciaController extends ProfesorController
         $titular = $this->personaTitular($request);
 
         DB::transaction(function () use ($request, $titular): void {
-            $persona = $this->usuario($request)->personas()->create([
+            $persona = $this->profesor($request)->personas()->create([
                 ...$request->datosPersona(),
                 'peco_numero_trabajador' => $titular->peco_numero_trabajador,
             ]);
@@ -74,10 +76,10 @@ class DatosEmergenciaController extends ProfesorController
             ->back();
     }
 
-    public function update(GuardarContactoEmergenciaRequest $request, int $persona): RedirectResponse
+    public function update(GuardarContactoEmergenciaRequest $request): RedirectResponse
     {
         $titular = $this->personaTitular($request);
-        $registro = $this->contactoDelProfesor($request, $persona);
+        $registro = $this->contactoDelProfesor($request);
 
         DB::transaction(function () use ($request, $titular, $registro): void {
             $registro->update($request->datosPersona());
@@ -90,10 +92,10 @@ class DatosEmergenciaController extends ProfesorController
             ->back();
     }
 
-    public function destroy(Request $request, int $persona): RedirectResponse
+    public function destroy(Request $request): RedirectResponse
     {
         $titular = $this->personaTitular($request);
-        $registro = $this->contactoDelProfesor($request, $persona);
+        $registro = $this->contactoDelProfesor($request);
 
         DB::transaction(function () use ($request, $titular, $registro): void {
             $registro->delete(); // sus teléfonos se borran en cascada
@@ -106,12 +108,55 @@ class DatosEmergenciaController extends ProfesorController
     }
 
     /**
-     * Busca el contacto de emergencia SOLO entre los del profesor con sesión.
+     * Descarga en Excel (solo administrador; ver rutas).
+     */
+    public function excel(Request $request, ExportadorExcel $exportador): BinaryFileResponse
+    {
+        $titular = $this->personaTitular($request);
+
+        Bitacora::registrar($this->usuario($request), 'excel_emergencia');
+
+        return $exportador->descargar(
+            prefijo: 'DatosEmergencia',
+            titulo: 'Datos de emergencia',
+            profesor: $titular,
+            columnas: [
+                'No. Contacto', 'Nombre(s)', 'Apellido paterno', 'Apellido materno', 'Parentesco',
+                'Teléfono (celular)', 'Teléfono (alterno)', 'Última fecha de actualización',
+            ],
+            filas: $this->contactosDeEmergencia($request)->values()->map(fn (PersonaContacto $persona, int $indice) => [
+                $indice + 1,
+                $persona->peco_nombre,
+                $persona->peco_apellido_paterno,
+                $persona->peco_apellido_materno,
+                $persona->parentesco?->pare_parentesco,
+                $this->telefono($persona, principal: true),
+                $this->telefono($persona, principal: false),
+                $persona->peco_fecha_ultima_actualizacion?->format('d/m/Y'),
+            ]),
+        );
+    }
+
+    /**
+     * Contactos de emergencia del profesor objetivo, con parentesco y teléfonos.
+     *
+     * @return Collection<int, PersonaContacto>
+     */
+    private function contactosDeEmergencia(Request $request): Collection
+    {
+        return $this->profesor($request)->contactosEmergencia()
+            ->with(['parentesco', 'contactos'])
+            ->orderBy('peco_id_persona_contacto')
+            ->get();
+    }
+
+    /**
+     * Busca el contacto de emergencia SOLO entre los del profesor objetivo.
      * Si es de otro profesor (o es su persona titular), responde 404.
      */
-    private function contactoDelProfesor(Request $request, int $persona): PersonaContacto
+    private function contactoDelProfesor(Request $request): PersonaContacto
     {
-        return $this->usuario($request)->contactosEmergencia()->findOrFail($persona);
+        return $this->profesor($request)->contactosEmergencia()->findOrFail($this->idDeRuta($request, 'persona'));
     }
 
     private function telefono(PersonaContacto $persona, bool $principal): ?string
