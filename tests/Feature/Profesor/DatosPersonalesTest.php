@@ -4,8 +4,6 @@ use App\Models\Bitacora;
 use App\Models\Contacto;
 use App\Models\PersonaContacto;
 use App\Models\Rol;
-use App\Models\TipoContacto;
-use App\Models\Usuario;
 use Database\Seeders\CatalogosSeeder;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Support\Carbon;
@@ -15,41 +13,7 @@ beforeEach(function () {
     $this->seed([CatalogosSeeder::class, RolesSeeder::class]);
 });
 
-/**
- * Crea un usuario con su persona titular (sus "datos personales").
- */
-function crearProfesor(string $numero = '2903872', string $rol = Rol::PROFESOR, bool $activo = true): Usuario
-{
-    $usuario = Usuario::create([
-        'usua_id_rol' => Rol::where('rol_nombre_rol', $rol)->value('rol_id_rol'),
-        'usua_nombre' => 'Profesor',
-        'usua_apellido_paterno' => "Prueba {$numero}",
-        'usua_correo' => "{$numero}@prueba.test",
-        'usua_activo' => $activo,
-    ]);
-
-    $usuario->personas()->create([
-        'peco_numero_trabajador' => $numero,
-        'peco_nombre' => 'Profesor',
-        'peco_apellido_paterno' => "Prueba {$numero}",
-    ]);
-
-    return $usuario;
-}
-
-function tipo(string $nombre): int
-{
-    return TipoContacto::where('tico_tipo_contacto', $nombre)->value('tico_id_tipo_contacto');
-}
-
-function agregarContacto(Usuario $usuario, string $tipo, string $descripcion, bool $principal = false): Contacto
-{
-    return $usuario->datosPersonales->contactos()->create([
-        'cont_id_tipo_contacto' => tipo($tipo),
-        'cont_descripcion' => $descripcion,
-        'cont_es_principal' => $principal,
-    ]);
-}
+// crearProfesor(), tipo() y agregarContacto() están en tests/Pest.php
 
 // ---------------------------------------------------------------- Acceso
 

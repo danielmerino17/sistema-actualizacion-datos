@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Profesor\DatosEmergenciaController;
 use App\Http\Controllers\Profesor\DatosPersonalesController;
 use App\Models\Rol;
 use App\Models\Usuario;
@@ -36,6 +37,16 @@ Route::middleware(['auth', 'rol:'.Rol::PROFESOR])->group(function () {
             Route::post('/', 'store')->name('store');
             Route::put('/{contacto}', 'update')->whereNumber('contacto')->name('update');
             Route::delete('/{contacto}', 'destroy')->whereNumber('contacto')->name('destroy');
+        });
+
+    Route::controller(DatosEmergenciaController::class)
+        ->prefix('datos-de-emergencia')
+        ->name('datos-emergencia.')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::put('/{persona}', 'update')->whereNumber('persona')->name('update');
+            Route::delete('/{persona}', 'destroy')->whereNumber('persona')->name('destroy');
         });
 });
 
