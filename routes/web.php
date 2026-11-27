@@ -10,7 +10,6 @@ use Database\Seeders\DesarrolloSeeder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::middleware('guest')->group(function () {
     Route::inertia('/', 'Login')->name('login');
@@ -90,18 +89,6 @@ Route::middleware(['auth', 'rol:'.Rol::ADMINISTRADOR])
 | En el servidor estas rutas no se registran. Ver config/sacpa.php.
 */
 if (app()->isLocal() && config('sacpa.accesos_prueba')) {
-    // Muestra de componentes de la Parte 2.
-    Route::inertia('/demo/componentes', 'Demo/Componentes')->name('demo.componentes');
-
-    Route::post('/demo/flash', function (Request $request) {
-        $datos = $request->validate([
-            'tipo' => ['required', 'in:exito,error'],
-            'mensaje' => ['required', 'string', 'max:120'],
-        ]);
-
-        return Inertia::flash($datos['tipo'], $datos['mensaje'])->back();
-    })->name('demo.flash');
-
     // Accesos de prueba para quien no tiene bd_fca en su máquina.
     // Entran como los usuarios inventados de DesarrolloSeeder.
     $entrarComo = function (string $correo) {

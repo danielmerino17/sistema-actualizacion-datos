@@ -126,9 +126,13 @@ class BuscarProfesorController extends Controller
 
         if ($busqueda['nombre'] !== '') {
             // Nombre completo, sin importar mayúsculas: "torres arroyo", "Luis Miguel", etc.
+            // "%" y "_" se buscan como texto (no como comodines de LIKE); "!" es el escape.
+            $texto = mb_strtolower((string) preg_replace('/\s+/', ' ', $busqueda['nombre']));
+            $texto = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $texto);
+
             $consulta->whereRaw(
-                "LOWER(peco_nombre || ' ' || peco_apellido_paterno || ' ' || COALESCE(peco_apellido_materno, '')) LIKE ?",
-                ['%'.mb_strtolower(preg_replace('/\s+/', ' ', $busqueda['nombre'])).'%'],
+                "LOWER(peco_nombre || ' ' || peco_apellido_paterno || ' ' || COALESCE(peco_apellido_materno, '')) LIKE ? ESCAPE '!'",
+                ['%'.$texto.'%'],
             );
         }
 
